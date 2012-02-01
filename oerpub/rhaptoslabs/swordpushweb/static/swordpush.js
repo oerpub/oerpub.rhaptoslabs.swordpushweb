@@ -199,9 +199,34 @@ picker.setVisible(true);
 // A simple callback implementation for Picker.
 function pickerCallback(data) {
 if(data.action == google.picker.Action.PICKED){
-    document.getElementById('gdocs_resource_id').value = google.picker.ResourceId.generate(data.docs[0]);
-    document.getElementById('gdocs_access_token').value = data.docs[0].accessToken;
+    $("#gdocs_resource_id").val(google.picker.ResourceId.generate(data.docs[0]));
+    $("#gdocs_access_token").val(data.docs[0].accessToken);
+    // Reset/Clear file input, we selected a GDoc
+    resetFileSelector();
+    // Clear URL-text because we selected a GDoc
+    resetUrlInput();
+    //$('#uploadform').submit();
+}
+
+function resetFileSelector() {
+    $("#file-submit").attr("disabled", "disabled");
+    $("#upload").replaceWith("<input id=\"upload\" name=\"upload\" type=\"file\" onchange=\"$('#file-submit').removeAttr('disabled');\"/>");
+}
+
+function resetGDocSelector() {
+    $("#gdocs_resource_id").val("");
+    $("#gdocs_access_token").val("");
+}
+
+function resetUrlInput() {
+    $('#url_text').val("");
+}
+
+function submitFile() {
+    resetGDocSelector();
+    resetUrlInput();
     $('#uploadform').submit();
 }
+
 }
 

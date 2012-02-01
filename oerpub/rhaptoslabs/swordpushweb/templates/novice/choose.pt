@@ -30,7 +30,7 @@
               <input id="upload" name="upload" type="file" onchange="$('#file-submit').removeAttr('disabled');"/>
               <br/>
               <br/>
-              <input id="file-submit" type="button" value="Preview" disabled="disabled" onclick="$('#uploadform').submit()"/>
+              <input id="file-submit" type="button" value="Preview" disabled="disabled" onclick="submitFile();"/>
               <br/>
               <br/>
         </center>
