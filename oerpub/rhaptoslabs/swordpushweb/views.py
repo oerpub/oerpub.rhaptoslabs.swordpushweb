@@ -248,9 +248,11 @@ def validate_cnxml(cnxml):
         raise ConversionError(log)
 
 def render_conversionerror(request, error):
-    print('Got ConversionError!!!')
     templatePath = 'templates/conv_error.pt'
-    response = {'filename' : request.session['filename'], 'error': error}
+    fname='gdoc'
+    if 'filename' in request.session:
+        fname=request.session['filename']
+    response = {'filename' : fname, 'error': error}
 
     # put the error on the session for retrieval on the editor
     # view
@@ -617,6 +619,7 @@ def cnxml_view(request):
                 fp.close()
 
         try:
+            cnxml = cnxml.encode('utf-8')
             save_cnxml(save_dir, cnxml, files)
             validate_cnxml(cnxml)
         except ConversionError as e:
