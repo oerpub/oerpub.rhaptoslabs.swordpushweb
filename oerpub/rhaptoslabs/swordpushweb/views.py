@@ -51,7 +51,7 @@ def check_login(request, raise_exception=True):
 class LoginSchema(formencode.Schema):
     allow_extra_fields = True
     service_document_url = formencode.validators.String(not_empty=True)
-    username = formencode.validators.PlainText(not_empty=True)
+    username = formencode.validators.NotEmpty()
     password = formencode.validators.NotEmpty()
 
 
@@ -149,12 +149,8 @@ def login_view(request):
         session['workspace_title'] = doc.xpath('//atom:title',
                                                namespaces=namespaces
                                                )[0].text
-        session['sword_version'] = doc.xpath('//sword:version',
-                                             namespaces=namespaces
-                                             )[0].text
-        session['maxuploadsize'] = doc.xpath('//sword:maxuploadsize',
-                                             namespaces=namespaces
-                                             )[0].text
+        session['sword_version'] = '2.0'
+        session['maxuploadsize'] = '600000000'
 
     # Go to the upload page
     return HTTPFound(location=request.route_url('choose'))
