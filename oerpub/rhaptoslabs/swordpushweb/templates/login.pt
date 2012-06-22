@@ -33,7 +33,7 @@
                                 <input type="text" name="service_document_url"
                                 value="${config.service_document_url}"
                                 style="width: 25em;"
-                                value="http://cnx.org/sword/servicedocument"/>
+                                value="http://demo.dspace.org/swordv2/servicedocument"/>
                             </div>
                         </div>
                         <table>

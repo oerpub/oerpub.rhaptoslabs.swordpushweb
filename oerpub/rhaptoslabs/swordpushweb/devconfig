@@ -1,6 +1,6 @@
 {
     "workspace_url": None,
-    "service_document_url": u'http://cnx.org/sword/servicedocument',
+    "service_document_url": u'http://demo.dspace.org/swordv2/servicedocument',
     "login_url": u'http://cnx.org/login_form',
     "edit_history": ['Initial version',],
     "metadata": {
