@@ -337,11 +337,15 @@ $(document).ready(function()
 
     $('input#upload').change(function(event){
         showWaitMessage();
+	var element = $('#expertmode');
+	disableExpertMode(element);
         $('form#uploadform').submit(); 
     });
 
     $('input#url-submit').click(function(event){
         showWaitMessage();
+	var element = $('#expertmode');
+	disableExpertMode(element);
     });
 
     // Show the "New or existing module?" overlay.
