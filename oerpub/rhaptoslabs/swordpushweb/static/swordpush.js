@@ -393,6 +393,7 @@ $(document).ready(function()
 
     // Show the chosen workgroup as selected when it's been clicked
     $(".popOut li").has("a").click(function(e){
+      e.preventDefault();
       var popMenu = $(this).closest("li.popMenu");
       element = $(this).find("a");
       $('input#workspace').attr('value', $(element).attr('href'));
@@ -422,8 +423,7 @@ $(document).ready(function()
         $(template).find('input#create-fl-url').removeAttr('value');
         $(template).find('input#create-fl-cnxmoduleid').removeAttr('value');
         $(template).find('input#create-fl-cnxversion').removeAttr('value');
-        $(template).find('input#create-fl-useurl').attr('checked', 'checked');
-        $(template).find('input#create-fl-usemodule').removeAttr('checked');
+        $(template).find('input#create-fl-useurl').click();
 
         $(template).find('span#create-featuredlinks').hide();
         $(template).find('span#edit-featuredlinks').show();
@@ -449,6 +449,8 @@ $(document).ready(function()
 
         // then we add a new row with the changed values
         addFeaturedLink();
+        
+        $("#show-featuredlinks-form").attr('checked', 'checked');
 
         $.modal.close();
     });
@@ -499,7 +501,7 @@ $(document).ready(function()
     // Also set that row's background color to be highlighted.
     $("#workarea-contents tbody tr").click(selectModuleRow);
     
-    $('.workspace-link').click(onWorkspaceChange);
+    $('div#workspace-list a.workspace-link').click(onWorkspaceChange);
 });
 
 function _doAction(message, event) {
@@ -658,15 +660,18 @@ function addFeaturedLink(){
         $('input#create-fl-url').removeAttr('value');
         $(template).find('div.edit-link-title a').attr('href', value);
         $(template).find('input.edit-link-url').attr('value', value);
+        $(template).find('input[name="fl_cnxmodule"]').remove();
     }
     if (usemodule == 'checked') {
         module = $('input#create-fl-cnxmoduleid').val();
         $('input#create-fl-cnxmoduleid').removeAttr('value');
         $(template).find('input.edit-link-cnxmodule').attr('value', module);
+        $(template).find('div.edit-link-title a').attr('href', module);
 
         version = $('input#create-fl-cnxversion').val();
         $('input#create-fl-cnxversion').removeAttr('value');
         $(template).find('input.edit-link-cnxversion').attr('value', version);
+        $(template).find('input[name="url"]').remove();
     }
 
     $(template).find('.edit-link').click(editFeaturedLink);
@@ -705,11 +710,9 @@ function editFeaturedLink(event) {
         .attr('value', cnxversion);
 
     if (url) {
-        $(template).find('input#create-fl-useurl')
-            .attr('checked', 'checked');
+        $(template).find('input#create-fl-useurl').click();
     } else {
-        $(template).find('input#create-fl-usemodule')
-            .attr('checked', 'checked');
+        $(template).find('input#create-fl-usemodule').click();
     }
 
     $('#featuredlinks span#create-featuredlinks').hide();
@@ -744,6 +747,9 @@ function selectModuleRow(event) {
         $(this).find("input[type='radio']").attr("checked","checked");
         $("#workarea-contents tbody tr").removeClass("selected-row");
         $(this).addClass("selected-row");
+        module = $(this).find("input").val();
+        $("input#module").attr("value", module);
+        $("#workspace").attr("value", $("a#selected_workspace").attr('href'));
         $(".forward-button").removeAttr("disabled");
     }
 }
@@ -779,7 +785,7 @@ function updateModules(data, textStatus, jqXHR) {
 
     $("#workarea-contents tbody tr").hover(highlightOn, highlightOff);
     $("#workarea-contents tbody tr").click(selectModuleRow);
-    $('.workspace-link').click(onWorkspaceChange);
+    $('div#workspace-list a.workspace-link').click(onWorkspaceChange);
     $('#upload-wait').slideUp('slow');
 }
 
