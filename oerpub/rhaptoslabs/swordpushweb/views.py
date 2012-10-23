@@ -9,7 +9,6 @@ import lxml
 import re
 from cStringIO import StringIO
 import peppercorn
-import codecs
 from lxml import etree
 from pyramid.view import view_config
 from pyramid.httpexceptions import HTTPFound
@@ -293,261 +292,6 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None)
     # do multiple tabs in parallel, unless it gets offloaded
     # onto the form again.
     return (gd_entry.title.text, "Google Document")
-
-
-@view_config(route_name='choose')
-def choose_view(request):
-    check_login(request)
-
-    templatePath = 'templates/choose.pt'
-
-    form = Form(request, schema=UploadSchema)
-    field_list = [('upload', 'File')]
-
-    # clear the session
-    if 'transformerror' in request.session:
-        del request.session['transformerror']
-    if 'title' in request.session:
-        del request.session['title']
-
-    # Check for successful form completion
-    if form.validate():
-        try: # Catch-all exception block
-            # Create a directory to do the conversions
-            now_string = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-            # TODO: This has a good chance of being unique, but even so...
-            temp_dir_name = '%s-%s' % (request.session['username'], now_string)
-            save_dir = os.path.join(
-                request.registry.settings['transform_dir'],
-                temp_dir_name
-                )
-            os.mkdir(save_dir)
-
-            # Keep the info we need for next uploads.  Note that this
-            # might kill the ability to do multiple tabs in parallel,
-            # unless it gets offloaded onto the form again.
-            request.session['upload_dir'] = temp_dir_name
-            if form.data['upload'] is not None:
-                request.session['filename'] = form.data['upload'].filename
-
-            # Google Docs Conversion
-            # if we have a Google Docs ID and Access token.
-            if form.data['gdocs_resource_id']:
-                gdocs_resource_id = form.data['gdocs_resource_id']
-                gdocs_access_token = form.data['gdocs_access_token']
-
-                form.data['gdocs_resource_id'] = None
-                form.data['gdocs_access_token'] = None
-
-                (request.session['title'], request.session['filename']) = \
-                    process_gdocs_resource(save_dir, \
-                                           gdocs_resource_id, \
-                                           gdocs_access_token)
-
-            # HTML URL Import:
-            elif form.data.get('url_text'):
-                url = form.data['url_text']
-
-                form.data['url_text'] = None
-
-                # Build a regex for Google Docs URLs
-                regex = re.compile("^https:\/\/docs\.google\.com\/.*document\/[^\/]\/([^\/]+)\/")
-                r = regex.search(url)
-
-                # Take special action for Google Docs URLs
-                if r:
-                    gdocs_resource_id = r.groups()[0]
-                    (request.session['title'], request.session['filename']) = \
-                        process_gdocs_resource(save_dir, "document:" + gdocs_resource_id)
-                else:
-                    # download html:
-                    #html = urllib2.urlopen(url).read()
-                    # Simple urlopen() will fail on mediawiki websites like e.g. Wikipedia!
-                    import_opener = urllib2.build_opener()
-                    import_opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-                    try:
-                        import_request = import_opener.open(url)
-                        html = import_request.read()
-
-                        # transformation
-                        cnxml, objects, html_title = htmlsoup_to_cnxml(
-                        html, bDownloadImages=True, base_or_source_url=url)
-                        request.session['title'] = html_title
-
-                        cnxml = clean_cnxml(cnxml)
-                        save_cnxml(save_dir, cnxml, objects.items())
-
-                        # Keep the info we need for next uploads.  Note that
-                        # this might kill the ability to do multiple tabs in
-                        # parallel, unless it gets offloaded onto the form
-                        # again.
-                        request.session['filename'] = "HTML Document"
-
-                        validate_cnxml(cnxml)
-
-                    except urllib2.URLError, e:
-                        request['errors'] = ['The URL %s could not be opened' %url,]
-                        response = {
-                            'form': FormRenderer(form),
-                            }
-                        return render_to_response(templatePath, response, request=request)
-
-            # Office, CNXML-ZIP or LaTeX-ZIP file
-            else:
-                # Save the original file so that we can convert, plus keep it.
-                original_filename = str(os.path.join(
-                    save_dir,
-                    form.data['upload'].filename.replace(os.sep, '_')))
-                saved_file = open(original_filename, 'wb')
-                input_file = form.data['upload'].file
-                shutil.copyfileobj(input_file, saved_file)
-                saved_file.close()
-                input_file.close()
-
-                form.data['upload'] = None
-
-                # Check if it is a ZIP file with at least index.cnxml or a LaTeX file in it
-                try:
-                    zip_archive = zipfile.ZipFile(original_filename, 'r')
-                    is_zip_archive = ('index.cnxml' in zip_archive.namelist())
-
-                    # Do we have a latex file?
-                    if not is_zip_archive:
-                        # incoming latex.zip must contain a latex.tex file, where "latex" is the base name.
-                        (latex_head, latex_tail) = os.path.split(original_filename)
-                        (latex_root, latex_ext)  = os.path.splitext(latex_tail)
-                        latex_basename = latex_root
-                        latex_filename = latex_basename + '.tex'
-                        is_latex_archive = (latex_filename in zip_archive.namelist())
-
-                except zipfile.BadZipfile:
-                    is_zip_archive = False
-                    is_latex_archive = False
-
-                # ZIP package from previous conversion
-                if is_zip_archive:
-                    # Unzip into transform directory
-                    zip_archive.extractall(path=save_dir)
-
-                    # Rename ZIP file so that the user can download it again
-                    os.rename(original_filename, os.path.join(save_dir, 'upload.zip'))
-
-                    # Read CNXML
-                    with open(os.path.join(save_dir, 'index.cnxml'), 'rt') as fp:
-                        cnxml = fp.read()
-
-                    # Convert the CNXML to XHTML for preview
-                    html = cnxml_to_htmlpreview(cnxml)
-                    with open(os.path.join(save_dir, 'index.xhtml'), 'w') as index:
-                        index.write(html)
-
-                    cnxml = clean_cnxml(cnxml)
-                    validate_cnxml(cnxml)
-
-                # LaTeX
-                elif is_latex_archive:
-                    f = open(original_filename)
-                    latex_archive = f.read()
-
-                    # LaTeX 2 CNXML transformation
-                    cnxml, objects = latex_to_cnxml(latex_archive, original_filename)
-
-                    cnxml = clean_cnxml(cnxml)
-                    save_cnxml(save_dir, cnxml, objects.items())
-                    validate_cnxml(cnxml)
-
-                # OOo / MS Word Conversion
-                else:
-                    # Convert from other office format to odt if needed
-                    filename, extension = os.path.splitext(original_filename)
-	            odt_filename = str(filename) + '.odt'
-
-                    if(extension != '.odt'):
-                        converter = JOD.DocumentConverterClient()
-                        # Checks to see if JOD is active on the machine. If it is the conversion occurs using JOD else it converts using OO headless
-                        if jod_check.check('office[0-9]'):
-                            try:
-                                converter.convert(original_filename, 'odt', filename + '.odt')
-                            except Exception as e:
-                                print e
-                        else:
-                            odt_filename= '%s.odt' % filename
-                            command = '/usr/bin/soffice -headless -nologo -nofirststartwizard "macro:///Standard.Module1.SaveAsOOO(' + escape_system(original_filename)[1:-1] + ',' + odt_filename + ')"'
-                            os.system(command)
-                        try:
-                            fp = open(odt_filename, 'r')
-                            fp.close()
-                        except IOError as io:
-                            raise ConversionError("%s not found" %
-                                                  original_filename)
-                    
-                    # Convert and save all the resulting files.
-
-                    tree, files, errors = transform(odt_filename)
-                    cnxml = clean_cnxml(etree.tostring(tree))
-
-                    save_cnxml(save_dir, cnxml, files.items())
-
-                    # now validate with jing
-                    validate_cnxml(cnxml)
-
-        except ConversionError as e:
-            return render_conversionerror(request, e.msg)
-
-        except Exception:
-            # Record traceback
-            tb = traceback.format_exc()
-            # Get software version from git
-            try:
-                import subprocess
-                p = subprocess.Popen(["git","log","-1"], stdout=subprocess.PIPE)
-                out, err = p.communicate()
-                commit_hash = out[:out.find('\n')]
-            except OSError:
-                commit_hash = 'None'
-            # Get timestamp
-            timestamp = datetime.datetime.now()
-            # Zip up error report, form data, uploaded file (if any)  and temporary transform directory
-            zip_filename = os.path.join(request.registry.settings['errors_dir'], temp_dir_name + '.zip')
-            zip_archive = zipfile.ZipFile(zip_filename, 'w')
-            zip_archive.writestr("info.txt", """TRACEBACK
-""" + tb + """
-GIT VERSION
-""" + commit_hash + """
-
-USER
-""" + request.session['username'] + """
-
-SERVICE DOCUMENT URL
-""" + request.session['service_document_url'] + """
-
-TIMESTAMP
-""" + str(timestamp) + """
-
-FORM DATA
-""" + '\n'.join([key + ': ' + str(form.data.get(key)) for key in ['gdocs_resource_id', 'gdocs_access_token', 'url_text']]) + "\n")
-            add_directory_to_zip(temp_dir_name, zip_archive, basePath=request.registry.settings['transform_dir'])
-
-            templatePath = 'templates/error.pt'
-            response = {
-                'traceback': tb,
-            }
-            if('title' in request.session):
-                del request.session['title']
-            return render_to_response(templatePath, response, request=request)
-
-#            tmp_obj = render_to_response(templatePath, response, request=request)
-#            return tmp_obj
-
-        request.session.flash('The file was successfully converted.')
-        return HTTPFound(location=request.route_url('preview'))
-
-    # First view or errors
-    response = {
-        'form': FormRenderer(form),
-        'field_list': field_list,
-    }
-    return render_to_response(templatePath, response, request=request)
 
 
 class PreviewSchema(formencode.Schema):
@@ -1248,3 +992,262 @@ class Choose_Module(Module_Association_View):
     def content_macro(self):
         return self.macro_renderer.implementation().macros['content_macro']
         
+
+
+class Choose_Document_Source(BaseHelper):
+
+    @view_config(route_name='choose')
+    def generate_html_view(self):
+        check_login(self.request)
+
+        templatePath = 'templates/choose.pt'
+
+        form = Form(self.request, schema=UploadSchema)
+        field_list = [('upload', 'File')]
+
+        # clear the session
+        if 'transformerror' in self.request.session:
+            del self.request.session['transformerror']
+        if 'title' in self.request.session:
+            del self.request.session['title']
+
+        # Check for successful form completion
+        if form.validate():
+            try: # Catch-all exception block
+                # Create a directory to do the conversions
+                now_string = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+                # TODO: This has a good chance of being unique, but even so...
+                temp_dir_name = '%s-%s' % (self.request.session['username'], now_string)
+                save_dir = os.path.join(
+                    self.request.registry.settings['transform_dir'],
+                    temp_dir_name
+                    )
+                os.mkdir(save_dir)
+
+                # Keep the info we need for next uploads.  Note that this
+                # might kill the ability to do multiple tabs in parallel,
+                # unless it gets offloaded onto the form again.
+                self.request.session['upload_dir'] = temp_dir_name
+                if form.data['upload'] is not None:
+                    self.request.session['filename'] = form.data['upload'].filename
+
+                # Google Docs Conversion
+                # if we have a Google Docs ID and Access token.
+                if form.data['gdocs_resource_id']:
+                    gdocs_resource_id = form.data['gdocs_resource_id']
+                    gdocs_access_token = form.data['gdocs_access_token']
+
+                    form.data['gdocs_resource_id'] = None
+                    form.data['gdocs_access_token'] = None
+
+                    (self.request.session['title'], self.request.session['filename']) = \
+                        process_gdocs_resource(save_dir, \
+                                               gdocs_resource_id, \
+                                               gdocs_access_token)
+
+                # HTML URL Import:
+                elif form.data.get('url_text'):
+                    url = form.data['url_text']
+
+                    form.data['url_text'] = None
+
+                    # Build a regex for Google Docs URLs
+                    regex = re.compile("^https:\/\/docs\.google\.com\/.*document\/[^\/]\/([^\/]+)\/")
+                    r = regex.search(url)
+
+                    # Take special action for Google Docs URLs
+                    if r:
+                        gdocs_resource_id = r.groups()[0]
+                        (self.request.session['title'], self.request.session['filename']) = \
+                            process_gdocs_resource(save_dir, "document:" + gdocs_resource_id)
+                    else:
+                        # download html:
+                        #html = urllib2.urlopen(url).read()
+                        # Simple urlopen() will fail on mediawiki websites like e.g. Wikipedia!
+                        import_opener = urllib2.build_opener()
+                        import_opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+                        try:
+                            import_request = import_opener.open(url)
+                            html = import_request.read()
+
+                            # transformation
+                            cnxml, objects, html_title = htmlsoup_to_cnxml(
+                            html, bDownloadImages=True, base_or_source_url=url)
+                            self.request.session['title'] = html_title
+
+                            cnxml = clean_cnxml(cnxml)
+                            save_cnxml(save_dir, cnxml, objects.items())
+
+                            # Keep the info we need for next uploads.  Note that
+                            # this might kill the ability to do multiple tabs in
+                            # parallel, unless it gets offloaded onto the form
+                            # again.
+                            self.request.session['filename'] = "HTML Document"
+
+                            validate_cnxml(cnxml)
+
+                        except urllib2.URLError, e:
+                            self.request['errors'] = ['The URL %s could not be opened' %url,]
+                            response = {
+                                'form': FormRenderer(form),
+                                }
+                            return render_to_response(templatePath, response, request=self.request)
+
+                # Office, CNXML-ZIP or LaTeX-ZIP file
+                else:
+                    # Save the original file so that we can convert, plus keep it.
+                    original_filename = str(os.path.join(
+                        save_dir,
+                        form.data['upload'].filename.replace(os.sep, '_')))
+                    saved_file = open(original_filename, 'wb')
+                    input_file = form.data['upload'].file
+                    shutil.copyfileobj(input_file, saved_file)
+                    saved_file.close()
+                    input_file.close()
+
+                    form.data['upload'] = None
+
+                    # Check if it is a ZIP file with at least index.cnxml or a LaTeX file in it
+                    try:
+                        zip_archive = zipfile.ZipFile(original_filename, 'r')
+                        is_zip_archive = ('index.cnxml' in zip_archive.namelist())
+
+                        # Do we have a latex file?
+                        if not is_zip_archive:
+                            # incoming latex.zip must contain a latex.tex file, where "latex" is the base name.
+                            (latex_head, latex_tail) = os.path.split(original_filename)
+                            (latex_root, latex_ext)  = os.path.splitext(latex_tail)
+                            latex_basename = latex_root
+                            latex_filename = latex_basename + '.tex'
+                            is_latex_archive = (latex_filename in zip_archive.namelist())
+
+                    except zipfile.BadZipfile:
+                        is_zip_archive = False
+                        is_latex_archive = False
+
+                    # ZIP package from previous conversion
+                    if is_zip_archive:
+                        # Unzip into transform directory
+                        zip_archive.extractall(path=save_dir)
+
+                        # Rename ZIP file so that the user can download it again
+                        os.rename(original_filename, os.path.join(save_dir, 'upload.zip'))
+
+                        # Read CNXML
+                        with open(os.path.join(save_dir, 'index.cnxml'), 'rt') as fp:
+                            cnxml = fp.read()
+
+                        # Convert the CNXML to XHTML for preview
+                        html = cnxml_to_htmlpreview(cnxml)
+                        with open(os.path.join(save_dir, 'index.xhtml'), 'w') as index:
+                            index.write(html)
+
+                        cnxml = clean_cnxml(cnxml)
+                        validate_cnxml(cnxml)
+
+                    # LaTeX
+                    elif is_latex_archive:
+                        f = open(original_filename)
+                        latex_archive = f.read()
+
+                        # LaTeX 2 CNXML transformation
+                        cnxml, objects = latex_to_cnxml(latex_archive, original_filename)
+
+                        cnxml = clean_cnxml(cnxml)
+                        save_cnxml(save_dir, cnxml, objects.items())
+                        validate_cnxml(cnxml)
+
+                    # OOo / MS Word Conversion
+                    else:
+                        # Convert from other office format to odt if needed
+                        filename, extension = os.path.splitext(original_filename)
+                        odt_filename = str(filename) + '.odt'
+
+                        if(extension != '.odt'):
+                            converter = JOD.DocumentConverterClient()
+                            # Checks to see if JOD is active on the machine. If it is the conversion occurs using JOD else it converts using OO headless
+                            if jod_check.check('office[0-9]'):
+                                try:
+                                    converter.convert(original_filename, 'odt', filename + '.odt')
+                                except Exception as e:
+                                    print e
+                            else:
+                                odt_filename= '%s.odt' % filename
+                                command = '/usr/bin/soffice -headless -nologo -nofirststartwizard "macro:///Standard.Module1.SaveAsOOO(' + escape_system(original_filename)[1:-1] + ',' + odt_filename + ')"'
+                                os.system(command)
+                            try:
+                                fp = open(odt_filename, 'r')
+                                fp.close()
+                            except IOError as io:
+                                raise ConversionError("%s not found" %
+                                                      original_filename)
+                        
+                        # Convert and save all the resulting files.
+
+                        tree, files, errors = transform(odt_filename)
+                        cnxml = clean_cnxml(etree.tostring(tree))
+
+                        save_cnxml(save_dir, cnxml, files.items())
+
+                        # now validate with jing
+                        validate_cnxml(cnxml)
+
+            except ConversionError as e:
+                return render_conversionerror(self.request, e.msg)
+
+            except Exception:
+                # Record traceback
+                tb = traceback.format_exc()
+                # Get software version from git
+                try:
+                    import subprocess
+                    p = subprocess.Popen(["git","log","-1"], stdout=subprocess.PIPE)
+                    out, err = p.communicate()
+                    commit_hash = out[:out.find('\n')]
+                except OSError:
+                    commit_hash = 'None'
+                # Get timestamp
+                timestamp = datetime.datetime.now()
+                # Zip up error report, form data, uploaded file (if any)  and temporary transform directory
+                zip_filename = os.path.join(self.request.registry.settings['errors_dir'], temp_dir_name + '.zip')
+                zip_archive = zipfile.ZipFile(zip_filename, 'w')
+                zip_archive.writestr("info.txt", """TRACEBACK
+    """ + tb + """
+    GIT VERSION
+    """ + commit_hash + """
+
+    USER
+    """ + self.request.session['username'] + """
+
+    SERVICE DOCUMENT URL
+    """ + self.request.session['service_document_url'] + """
+
+    TIMESTAMP
+    """ + str(timestamp) + """
+
+    FORM DATA
+    """ + '\n'.join([key + ': ' + str(form.data.get(key)) for key in ['gdocs_resource_id', 'gdocs_access_token', 'url_text']]) + "\n")
+                add_directory_to_zip(temp_dir_name, zip_archive, basePath=self.request.registry.settings['transform_dir'])
+
+                templatePath = 'templates/error.pt'
+                response = {
+                    'traceback': tb,
+                }
+                if('title' in self.request.session):
+                    del self.request.session['title']
+                return render_to_response(templatePath, response, request=self.request)
+
+    #            tmp_obj = render_to_response(templatePath, response, request=self.request)
+    #            return tmp_obj
+
+            self.request.session.flash('The file was successfully converted.')
+            return HTTPFound(location=self.request.route_url('preview'))
+
+        # First view or errors
+        response = {
+            'form': FormRenderer(form),
+            'field_list': field_list,
+        }
+        return render_to_response(templatePath, response, request=self.request)
+
+
