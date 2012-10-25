@@ -960,7 +960,6 @@ class Choose_Module(Module_Association_View):
     @reify
     def content_macro(self):
         return self.macro_renderer.implementation().macros['content_macro']
-        
 
 
 class Choose_Document_Source(BaseHelper):
@@ -983,6 +982,8 @@ class Choose_Document_Source(BaseHelper):
         # Check for successful form completion
         if form.validate():
             try: # Catch-all exception block
+                message = 'The file was successfully converted.'
+
                 # Create a directory to do the conversions
                 temp_dir_name, save_dir = self.create_work_dir(self.request)
 
@@ -990,14 +991,21 @@ class Choose_Document_Source(BaseHelper):
                 # might kill the ability to do multiple tabs in parallel,
                 # unless it gets offloaded onto the form again.
                 self.request.session['upload_dir'] = temp_dir_name
-                if form.data['upload'] is not None:
+                if form.data.get('newmodule'):
+                    # save empty cnxml and html files
+                    cnxml = self.empty_cnxml()
+                    files = []
+                    save_cnxml(save_dir, cnxml, files)
+
+                elif form.data['upload'] is not None:
                     # this is a lot of data to stick on the session :(
                     self.request.session['filename'] = form.data['upload'].filename
 
                 # Google Docs Conversion
                 # if we have a Google Docs ID and Access token.
-                if form.data['gdocs_resource_id']:
+                elif form.data.get('gdocs_resource_id'):
                     self.process_gdoc_data(form, self.request, save_dir)
+
                 # HTML URL Import:
                 elif form.data.get('url_text'):
                     errors = self.process_url_data(self.request, save_dir)
@@ -1025,7 +1033,7 @@ class Choose_Document_Source(BaseHelper):
                     del self.request.session['title']
                 return render_to_response(templatePath, response, request=self.request)
 
-            self.request.session.flash('The file was successfully converted.')
+            self.request.session.flash(message)
             return HTTPFound(location=self.request.route_url('preview'))
 
         # First view or errors
@@ -1299,3 +1307,11 @@ class Choose_Document_Source(BaseHelper):
         add_directory_to_zip(temp_dir_name,
                              zip_archive,
                              basePath=basePath)
+
+    def empty_cnxml(self):
+        config = load_config(self.request)
+        filepath = config['blank_cnxml_file'] 
+        with open(filepath, 'rb') as cnxmlfile:
+            content = cnxmlfile.read()
+        return content
+
