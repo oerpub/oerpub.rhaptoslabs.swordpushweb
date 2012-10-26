@@ -867,6 +867,12 @@ class ModuleAssociationSchema(formencode.Schema):
 
 class Module_Association_View(BaseHelper):
 
+    # NOTE: Your implementation class *must* define these actions if you want
+    # to reuse the navigation and batch macros.
+    navigation_actions = {'next': 'metadata', 
+                          'previous': 'preview',
+                          'batch': 'module_association'}
+
     @view_config(route_name='module_association',
                  renderer='templates/module_association.pt')
     def generate_html_view(self):
@@ -916,9 +922,14 @@ class Module_Association_View(BaseHelper):
     @reify
     def modules_list(self):
         return self.macro_renderer.implementation().macros['modules_list']
-
-
+    
 class Modules_List_View(BaseHelper):
+
+    # NOTE: Your implementation class *must* define these actions if you want
+    # to reuse the navigation and batch macros.
+    navigation_actions = {'next': 'choose', 
+                          'previous': 'metadata',
+                          'batch': 'module_association'}
 
     @view_config(
         route_name='modules_list', renderer="templates/modules_list.pt")
@@ -949,8 +960,13 @@ class Modules_List_View(BaseHelper):
     def modules_list(self):
         return self.macro_renderer.implementation().macros['modules_list']
 
-
 class Choose_Module(Module_Association_View):
+
+    # NOTE: Your implementation class *must* define these actions if you want
+    # to reuse the navigation and batch macros.
+    navigation_actions = {'next': 'preview', 
+                          'previous': 'choose',
+                          'batch': 'choose-module'}
 
     @view_config(
         route_name='choose-module', renderer="templates/choose_module.pt")
@@ -960,7 +976,6 @@ class Choose_Module(Module_Association_View):
     @reify
     def content_macro(self):
         return self.macro_renderer.implementation().macros['content_macro']
-
 
 class Choose_Document_Source(BaseHelper):
 
