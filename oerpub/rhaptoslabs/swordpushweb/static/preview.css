@@ -21,8 +21,9 @@
 pre {
 	  padding: 2px 4px;
  	  border: 1px solid #e1e1e8;
+ 	  background-color: #f7f7f9;
  	  font-family: courier, courier new, monospace;
 	  font-size: 1.18em;
-      color: #060;
+      white-space: nowrap;
       font-style: normal;
 }
