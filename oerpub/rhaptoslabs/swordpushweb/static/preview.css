@@ -25,5 +25,6 @@ pre {
  	  font-family: courier, courier new, monospace;
 	  font-size: 1.18em;
       white-space: pre-wrap;
+      display:block;
       font-style: normal;
 }
