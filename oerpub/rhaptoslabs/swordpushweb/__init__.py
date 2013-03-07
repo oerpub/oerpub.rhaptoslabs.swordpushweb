@@ -38,6 +38,8 @@ def add_routes(config):
     config.add_route('upload_dnd', '/upload_dnd')
     config.add_route('updatecnx', '/updatecnx')
     config.add_route('enhance', '/enhance')
+    config.add_route('oauth2', '/oauth2')
+    config.add_route('googlelogin', '/googlelogin')
 
     # every other add_route declaration should come
     # before this one, as it will, by default, catch all requests

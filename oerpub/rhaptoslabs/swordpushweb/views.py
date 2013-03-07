@@ -66,6 +66,57 @@ class LoginSchema(formencode.Schema):
     username = formencode.validators.PlainText(not_empty=True)
     password = formencode.validators.NotEmpty()
 
+@view_config(route_name='oauth2')
+def oauth2(request):
+    token_request_uri = "https://accounts.google.com/o/oauth2/auth"
+    response_type = "code"
+    client_id= "640541804881.apps.googleusercontent.com"
+    client_secret = "7cI9ZfiG5wbZk_EP_TSAXEF8"
+    redirect_uri = "http://r2d1.oerpub.org/googlelogin"
+    scope = "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email   https://www.googleapis.com/auth/drive"
+    url ="{token_request_uri}?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}".format(
+            token_request_uri = token_request_uri,
+            response_type = response_type,
+            client_id = client_id,
+            redirect_uri = redirect_uri,
+            scope = scope)
+
+    flow = OAuth2WebServerFlow(client_id=client_id,client_secret=client_secret,scope=scope,redirect_uri=redirect_uri)
+    new_url = auth_uri = flow.step1_get_authorize_url()
+    request.session['flow']=flow
+    return HTTPFound(new_url)
+
+@view_config(route_name='googlelogin')
+def googlelogin(request):
+    if 'error' in request.GET or 'code' not in request.GET:
+        login_failed_url='/'
+        return HTTPFound('{loginfailed}'.format(loginfailed = login_failed_url))
+    access_token_uri = ACCESS_TOKEN_URL
+
+    redirect_uri = "http://r2d1.oerpub.org/googleauth"
+    params = urllib.urlencode({
+        'code':request.GET['code'],
+        'redirect_uri':redirect_uri,
+        'client_id':'640541804881.apps.googleusercontent.com',
+        'client_secret':'7cI9ZfiG5wbZk_EP_TSAXEF8',
+        'grant_type':'authorization_code'
+        })
+    code = request.GET['code']
+    flow=request.session['flow']
+    credentials = flow.step2_exchange(code)
+    """
+
+
+    headers={'content-type':'application/x-www-form-urlencoded'}
+    req = urllib2.Request(access_token_uri, params, headers)
+    response = urllib2.urlopen(req)
+    data = response.read()
+    token_data = json.decode(data)
+    req=urllib2.Request("https://www.googleapis.com/auth/userinfo.profile?access_token={accessToken}".format(accessToken=token_data['access_token']))
+    data=urllib2.urlopen(req).read()
+    google_profile = json.decode(data)
+    """
+    return Response(body=credentials, content_type='text/plain')
 @view_config(route_name='login')
 def login_view(request):
     """
