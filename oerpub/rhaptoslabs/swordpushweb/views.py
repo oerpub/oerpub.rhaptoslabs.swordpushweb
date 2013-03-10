@@ -58,7 +58,8 @@ from helpers import BaseHelper
 from .editor import EditorHelper
 
 TESTING = False      
-
+from oauth2client.file import Storage
+import httplib2
 
 class LoginSchema(formencode.Schema):
     allow_extra_fields = True
@@ -104,6 +105,14 @@ def googlelogin(request):
     code = request.GET['code']
     flow=request.session['flow']
     credentials = flow.step2_exchange(code)
+    storage = Storage("/root/master/saket_credentials")
+    storage.put(credentials)
+    http = httplib2.Http()
+    http = credentials.authorize(http)
+    service = build('drive','v2',http=http)
+    responses = str(service.files.get())
+
+
     """
 
 
@@ -116,7 +125,7 @@ def googlelogin(request):
     data=urllib2.urlopen(req).read()
     google_profile = json.decode(data)
     """
-    return Response(body=credentials, content_type='text/plain')
+    return Response(body=responses, content_type='text/plain')
 @view_config(route_name='login')
 def login_view(request):
     """
