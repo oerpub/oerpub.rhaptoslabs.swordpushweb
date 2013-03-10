@@ -77,7 +77,7 @@ def oauth2(request):
     client_id= "640541804881.apps.googleusercontent.com"
     client_secret = "7cI9ZfiG5wbZk_EP_TSAXEF8"
     redirect_uri = "http://r2d1.oerpub.org/googlelogin"
-    scope = "https://www.googleapis.com/auth/userinfo.profile  https://www.googleapis.com/auth/userinfo.email  https://www.googleapis.com/auth/drive  https://www.googleapis.com/auth/drive.metadata.readonly  https://www.googleapis.com/auth/drive.readonly   https://www.googleapis.com/auth/drive.file"
+    scope = "https://www.googleapis.com/auth/userinfo.profile    https://www.googleapis.com/auth/userinfo.email    https://www.googleapis.com/auth/drive.file    https://www.googleapis.com/auth/drive.readonly "
     url ="{token_request_uri}?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}".format(
             token_request_uri = token_request_uri,
             response_type = response_type,
