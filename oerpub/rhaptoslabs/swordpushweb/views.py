@@ -94,7 +94,6 @@ def googlelogin(request):
     if 'error' in request.GET or 'code' not in request.GET:
         login_failed_url='/'
         return HTTPFound('{loginfailed}'.format(loginfailed = login_failed_url))
-    access_token_uri = ACCESS_TOKEN_URL
     code = request.GET['code']
     flow=request.session['flow']
     credentials = flow.step2_exchange(code)
