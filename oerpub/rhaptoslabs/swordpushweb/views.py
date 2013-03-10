@@ -103,9 +103,9 @@ def googlelogin(request):
     http = httplib2.Http()
     http = credentials.authorize(http)
     service = build('drive','v2',http=http)
-    responses = (service.files().list())
-    print responses
-    return Response(body=responses, content_type='text/plain')
+    files = (service.files().list().execute())
+    print files['items']
+    return Response(body=str(files['items']), content_type='text/plain')
 @view_config(route_name='login')
 def login_view(request):
     """
