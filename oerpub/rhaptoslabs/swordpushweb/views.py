@@ -77,7 +77,7 @@ def oauth2(request):
     client_id= "640541804881.apps.googleusercontent.com"
     client_secret = "7cI9ZfiG5wbZk_EP_TSAXEF8"
     redirect_uri = "http://r2d1.oerpub.org/googlelogin"
-    scope = "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email   https://www.googleapis.com/auth/drive"
+    scope = "https://www.googleapis.com/auth/userinfo.profile  https://www.googleapis.com/auth/userinfo.email  https://www.googleapis.com/auth/drive  https://www.googleapis.com/auth/drive.metadata.readonly  https://www.googleapis.com/auth/drive.readonly   https://www.googleapis.com/auth/drive.file"
     url ="{token_request_uri}?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}".format(
             token_request_uri = token_request_uri,
             response_type = response_type,
@@ -103,21 +103,8 @@ def googlelogin(request):
     http = httplib2.Http()
     http = credentials.authorize(http)
     service = build('drive','v2',http=http)
-    responses = str(service.files().list())
-
-
-    """
-
-
-    headers={'content-type':'application/x-www-form-urlencoded'}
-    req = urllib2.Request(access_token_uri, params, headers)
-    response = urllib2.urlopen(req)
-    data = response.read()
-    token_data = json.decode(data)
-    req=urllib2.Request("https://www.googleapis.com/auth/userinfo.profile?access_token={accessToken}".format(accessToken=token_data['access_token']))
-    data=urllib2.urlopen(req).read()
-    google_profile = json.decode(data)
-    """
+    responses = (service.files().list())
+    print responses
     return Response(body=responses, content_type='text/plain')
 @view_config(route_name='login')
 def login_view(request):
