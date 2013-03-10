@@ -62,6 +62,7 @@ TESTING = False
 from oauth2client.client import OAuth2WebServerFlow
 from oauth2client.file import Storage
 import httplib2
+from apiclient.discovery import build
 
 class LoginSchema(formencode.Schema):
     allow_extra_fields = True
