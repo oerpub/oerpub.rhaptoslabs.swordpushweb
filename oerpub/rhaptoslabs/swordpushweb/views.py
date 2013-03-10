@@ -103,7 +103,7 @@ def googlelogin(request):
     http = httplib2.Http()
     http = credentials.authorize(http)
     service = build('drive','v2',http=http)
-    responses = str(service.files.list())
+    responses = str(service.files().list())
 
 
     """
