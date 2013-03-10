@@ -95,15 +95,6 @@ def googlelogin(request):
         login_failed_url='/'
         return HTTPFound('{loginfailed}'.format(loginfailed = login_failed_url))
     access_token_uri = ACCESS_TOKEN_URL
-
-    redirect_uri = "http://r2d1.oerpub.org/googleauth"
-    params = urllib.urlencode({
-        'code':request.GET['code'],
-        'redirect_uri':redirect_uri,
-        'client_id':'640541804881.apps.googleusercontent.com',
-        'client_secret':'7cI9ZfiG5wbZk_EP_TSAXEF8',
-        'grant_type':'authorization_code'
-        })
     code = request.GET['code']
     flow=request.session['flow']
     credentials = flow.step2_exchange(code)
