@@ -580,14 +580,28 @@ google.load('picker', '1', {"callback" : createPicker});
 }       
 
 // Create and render a Picker object for selecting documents
-function createPicker() {
+/*function createPicker() {
 var picker = new google.picker.PickerBuilder().
     addView(google.picker.ViewId.DOCUMENTS).
     setCallback(pickerCallback).
     build();
 picker.setVisible(true);
 }
+*/
 
+function createPicker() {
+	var view = new google.picker.View(google.picker.ViewId.DOCS);
+	view.setMimeTypes("image/png,image/jpeg,image/jpg");    
+	var picker = new google.picker.PickerBuilder()
+		.enableFeature(google.picker.Feature.NAV_HIDDEN)
+		.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+		.setAppId("AIzaSyBSNe5eQnng8Um7JmUZTBC8tKwGtOkYJg0")//Optional: The auth token used in the current Drive API session.
+		.addView(view)
+		.addView(new google.picker.DocsUploadView())
+		.setCallback(pickerCallback)
+	                  	                                                                                  .build();
+	picker.setVisible(true);
+}
 // A simple callback implementation for Picker.
 function pickerCallback(data) {
     if(data.action == google.picker.Action.PICKED){
