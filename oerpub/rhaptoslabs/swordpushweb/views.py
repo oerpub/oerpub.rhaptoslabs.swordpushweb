@@ -397,7 +397,7 @@ def render_conversionerror(request, error):
     return render_to_response(templatePath, response, request=request)
 
 def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None):
-
+    """
     # login to gdocs and get a client object
     gd_client = getAuthorizedGoogleDocsClient()
 
@@ -412,6 +412,17 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None)
     # Get the contents of the document
     gd_entry_url = gd_entry.content.src
     html = gd_client.get_file_content(gd_entry_url, auth_sub_token)
+    """
+    credentials = oauth2client.client.Credentials.from_json("/root/master/saket_credentials.json")
+
+    http = httplib2.Http()
+    http = credentials.authorize(http)
+    service = build('drive','v2',http=http)
+    file = service.files().get(fileId=gdocs_resource_id).execute()
+    html = file['title']
+    print "**********************"
+    print html
+    print "**********************"
 
     # Transformation and get images
     cnxml, objects = gdocs_to_cnxml(html, bDownloadImages=True)
