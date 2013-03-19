@@ -415,7 +415,7 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None)
     """
     a= open("/root/master/saket_credentials.json")
     r=a.read()
-    js = json.loads(js)
+    js = json.loads(r)
     credentials = oauth2client.client.Credentials.from_json(js)
 
     http = httplib2.Http()
