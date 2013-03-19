@@ -596,10 +596,10 @@ function createPicker() {
 		.enableFeature(google.picker.Feature.NAV_HIDDEN)
 		.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
 		.setAppId("AIzaSyBSNe5eQnng8Um7JmUZTBC8tKwGtOkYJg0")//Optional: The auth token used in the current Drive API session.
-		.addView(view)
-		.addView(new google.picker.DocsUploadView())
+		.addView(google.picker.ViewId.DOCUMENTS)
 		.setCallback(pickerCallback)
 	                  	                                                                                  .build();
+		//.addView(new google.picker.DocsUploadView())
 	picker.setVisible(true);
 }
 // A simple callback implementation for Picker.
