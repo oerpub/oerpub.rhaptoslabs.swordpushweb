@@ -58,7 +58,7 @@ from helpers import BaseHelper
 from .editor import EditorHelper
 
 TESTING = False      
-
+import oauth2client, oauthe2client.client
 from oauth2client.client import OAuth2WebServerFlow
 from oauth2client.file import Storage
 import httplib2
