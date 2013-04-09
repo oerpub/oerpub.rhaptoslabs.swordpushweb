@@ -1,0 +1,122 @@
+<metal:use use-macro="base">
+
+    <metal:script fill-slot="script-slot">
+
+        <metal:m use-macro="editor.css" />
+        
+        <link rel="stylesheet" type="text/css" href="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/preview.css')}"> <!-- xhtml workaround --></link>
+        <link rel="stylesheet" type="text/css" href="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/cnx-style.css')}"> <!-- xhtml workaround --></link>
+
+        <metal:m use-macro="editor.javascript" />
+        <script type="text/javascript" src="${request.application_url}/aloha/src/lib/require.js">
+            <!-- xhtml workaround -->
+        </script>
+
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/preview.js')}">
+            <!-- xhtml workaround -->
+        </script>
+    </metal:script>
+
+    <metal:workflownav fill-slot="workflownav">
+    
+    <metal:workflow_nav_form_begin use-macro="view.workflow_nav_form_begin" />
+    <input name="workflownav.preview.submitted" type="hidden" value="submitted" />
+    <div id="workflownav-wrap">
+        <div id="workflownav-container">
+            <div id="back-steps">
+                <input id="btn-back" name="btn-back"
+                    type="submit"
+                    value="back step" 
+                    class="back-button" 
+                    role="button"
+                    title="Back"
+                    tal:attributes="href string:/${view.get_previous_action()};
+                                    value structure:view.back_step_label;
+                                    title view.back_step_title"/>
+            </div>
+
+            <input id="source" type="hidden" name="source"
+                tal:attributes="value request.session.get('source')">
+            <input id="target" type="hidden" name="target"
+                tal:attributes="value request.session.get('target')">
+            <input id="workspace" type="hidden" name="workspace"
+                tal:attributes="value selected_workspace|nothing">
+            <input name="workflownav.form.submitted" type="hidden" value="submitted" />
+            
+            <div id="forward-steps">
+                <metal:extras define-slot="extras"/>
+                <input id="btn-forward"
+                    name="btn-forward"
+                    href="#neworexisting"
+                    role="button"
+                    class="button forward-button"
+                    data-toggle="modal"
+                    type="button"
+                    value="next step" 
+                    title="Select a module below and then click 'Next' to start editing it"
+                    tal:attributes="value structure:view.next_step_label;
+                                    title view.next_step_title"/>
+            </div>
+        </div>
+    </div>
+    <metal:workflow_nav_form_end use-macro="view.workflow_nav_form_end" />
+
+    </metal:workflownav>
+
+    <metal:content-slot fill-slot="content-slot"
+        tal:define="filename python:request.session.get('filename')">
+        <div id="ie6-container-wrap">
+            <div id="container">
+                <!-- ================= -->
+                <!--  Toolbar Buttons  -->
+                <!-- ================= -->
+                <metal:m use-macro="editor.toolbar" />
+                <div id="content">
+                    <div id="artboard">
+                        <div id="pageheader-wrap">
+                            <div id="module-actions">
+                                <div class="advanced" style="display: block;">
+                                    <h2 class="advanced-label">
+                                        Advanced
+                                    </h2>
+                                    <strong>Module actions: </strong>
+                                    <a id="download-copy"
+                                        title="Save a ZIP file containing the module's XML and metadata to your local computer."
+                                        href="#asdfaasdf"
+                                        tal:attributes="href request.route_url('download_zip')">
+                                        <span class="button">Download a copy</span>
+                                    </a>
+                                    <a id="edit-xml"
+                                        title="Make changes to the module by editing its XML code."
+                                        href="${request.route_url('cnxml')}">
+                                        <span class="button">Edit XML</span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div id="page-title">
+                                <h1>
+                                    Preview:
+                                    <span class="metatitle">
+                                        Conversion of <span tal:content="filename">Filename</span>
+                                    </span>
+                                </h1>
+                            </div>
+
+                        </div>
+                        <metal:m use-macro="editor.editor" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <div class="pleasewait" id="upload-wait" style="display: none;">
+        Your document is being saved. This may take a few moments.
+    </div>
+
+    <metal:neworexisting use-macro="view.neworexisting_dialog" />
+
+    </metal:content-slot>
+
+    <metal:footer-slot fill-slot="footer-slot" />
+</metal:use>

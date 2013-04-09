@@ -1,6 +1,9 @@
 from pyramid.config import Configurator
 from pyramid_beaker import session_factory_from_settings
 
+from .interfaces import IWorkflowSteps
+from .provider import WorkflowStepsUtility
+
 def main(global_config, **settings):
     """
     This function returns a Pyramid WSGI application.
@@ -12,6 +15,8 @@ def main(global_config, **settings):
     
     add_routes(config)
     add_static_resources(config)
+    add_subscribers(config)
+    register_utilities(config)
 
     config.scan()
     return config.make_wsgi_app()
@@ -38,6 +43,10 @@ def add_routes(config):
     config.add_route('upload_dnd', '/upload_dnd')
     config.add_route('updatecnx', '/updatecnx')
     config.add_route('enhance', '/enhance')
+    config.add_route('json_get_source_from_session', '/json_get_source_from_session')
+    config.add_route('json_get_target_from_session', '/json_get_target_from_session')
+    config.add_route('json_set_source_on_session', '/json_set_source_on_session')
+    config.add_route('json_set_target_on_session', '/json_set_target_on_session')
 
     # every other add_route declaration should come
     # before this one, as it will, by default, catch all requests
@@ -60,9 +69,18 @@ def add_static_resources(config):
         'oerpub.rhaptoslabs.swordpushweb:transforms',
         cache_max_age=0)
 
+def add_subscribers(config):
     config.add_subscriber(
         '.subscribers.add_base_template',
         'pyramid.events.BeforeRender')
+
     config.add_subscriber(
         '.subscribers.add_provider',
         'pyramid.events.BeforeRender')
+
+    config.add_subscriber(
+        '.subscribers.add_utils',
+        'pyramid.events.BeforeRender')
+
+def register_utilities(config):
+    config.registry.registerUtility(WorkflowStepsUtility(), IWorkflowSteps)

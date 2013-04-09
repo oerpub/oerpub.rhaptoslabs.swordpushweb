@@ -1,0 +1,195 @@
+<metal:main define-macro="main"
+    tal:define="images_url request.static_url('oerpub.rhaptoslabs.swordpushweb:static/images')">
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" xmlns:tal="http://xml.zope.org/namespaces/tal">
+    <head>
+        <title>
+        <metal:page_title define-slot="page_title">
+            OERPUB Importer
+        </metal:page_title>
+        </title>
+
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+
+        <div tal:omit-tag="" tal:condition="econtext.get('codemirror', False)">
+          <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:codemirror/lib/codemirror.js')}"></script>
+          <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/cnxml.js')}"></script>
+          <link rel="stylesheet" href="${request.static_url('oerpub.rhaptoslabs.swordpushweb:codemirror/lib/codemirror.css')}"/>
+          <link rel="stylesheet" href="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/cnxml.css')}"/>
+          <style type="text/css">
+    .CodeMirror {border: 1px solid black;}
+    .CodeMirror-scroll {height: 100%; width: 100%; overflow-y: auto; }
+          </style>
+        </div>
+
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/jquery-1.7.1.min.js')}"></script>
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/jquery.simplemodal.1.4.1.min.js')}"></script>
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/modernizr-custom.js')}"></script>
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/polyfiller.js')}"></script>
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/googlejsapi.js')}"></script>
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/swordpush.js')}"></script>
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/navigation.js')}"></script>
+        <script src="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/cookie.js')}"></script>
+
+        <link rel="stylesheet" href="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/main.css')}" type="text/css" media="screen" charset="utf-8" />
+        <!--[if IE 6]>
+        <link rel="stylesheet" href="${request.static_url('oerpub.rhaptoslabs.swordpushweb:static/ie6.css')}" type="text/css" media="screen" charset="utf-8" />
+        <![endif]-->
+<script type="text/javascript">
+
+            $(document).ready(function(){
+                /* Moved this portion back directly into the file because 'headerh' wasn't
+                   always correctly calculated when done from the external file. 
+                */
+
+                var winh = $(window).height();
+                var headerh = $("#header-container").outerHeight();
+                var wfnh = $("#workflownav-wrap").outerHeight();
+                var eh = $("#errors-wrap").outerHeight();
+                var contentp = parseInt($("#content").css("paddingTop"));
+                var contentp = contentp + parseInt($("#content").css("paddingBottom"));
+                var phwh = $("#pageheader-wrap").outerHeight();
+                var ma = $("#module-actions .advanced").outerWidth();
+
+                var fittedframe = $("iframe.fitted");
+                if (fittedframe.length > 0) {
+                    // Make the iframe fit exactly inside the remaining space
+                    $(fittedframe).height(winh - headerh - wfnh - contentp - phwh + 5);
+                    $(fittedframe).width($(window).width() - 53);
+                    $(fittedframe).contents().find('body').addClass('preview');
+                    // if we have a preview_url, reload it
+                    var p_url = $(fittedframe).attr('preview_url');
+                    if (p_url.length > 0) {
+                        $(fittedframe).attr('src', p_url);
+                    }
+                } 
+
+                /* Give the page's header the correct top margin (since the elements above
+                   it are in a fixed position)
+                */
+                $("#content").css({'margin-top': headerh + wfnh})
+                
+                /* Get the expert mode cookie.
+                   If it does not exist we create it and set it to false.
+                   This means the UI will work in 'novice' mode until the user
+                   changes it.
+                */
+                var expertmode = $.cookie(em_cookie);
+                if (!expertmode) {
+                    expertmode = false;
+                    $.cookie(em_cookie, expertmode, { path: '/'});
+                }
+                var element = $('#expertmode');
+                if (expertmode == "true") {
+                    enableExpertMode(element);
+                    /* this is necessary to put the 'toggle' function in the correct
+                       state. If I don't do this, you have to click the link twice in
+                       order to disable expert mode.
+                    */
+                    $('#expertmode').click();
+                } else {
+                    disableExpertMode(element);
+                }
+            });
+
+        </script>
+
+        <script>
+        function check_submit() {
+          passed = true;
+          names = ["service_document_url", "username", "password"];
+          for(idx in names) {
+            name = names[idx];
+            var x = document.forms["login_form"][name];
+            if((x.value == null) || (x.value == "")) {
+              x.style.background = '#ffce99';
+              passed = false;
+            } else {
+              x.style.background = '#ffffff';
+            }
+          }
+          return passed;
+        }
+        </script>
+        
+        <!-- Extra scripts -->
+        <metal:script-slot define-slot="script-slot">
+        </metal:script-slot>
+
+    </head>
+
+    <body metal:define-slot="body">
+        <metal:header-slot define-slot="header-slot">
+        <div id="header-wrap">
+
+            <div id="header-container">
+
+                <div id="header-functions">
+                    <div id="expertmode" class="expert-activated">
+                        <span id="expand-advanced">
+                            «
+                        </span>
+                        <span id="basic-message" style="display: none; ">
+                            <span class="link-like">Switch to advanced mode</span>
+                        </span>
+                        <span id="advanced-message" style="">
+                            You are in advanced mode. 
+                            <span class="link-like">Return to basic mode.</span>
+                        </span>
+                    </div>
+
+                    <div id="status" tal:define="username request.session.username|nothing"
+                        tal:condition="username">
+                        <span id="user-id">You are logged in as: <strong tal:content="username">user name</strong></span>.
+                        <a href="/logout" id="logout_link" target="_top">Sign out.</a>
+                    </div>
+                </div>
+
+                <div id="header">
+                    <h1>
+                        <a id="cnxlogo_link" href="${request.route_url('login')}">
+                            <img class="cnxlogo" 
+                                src="/static/images/connexions_icon.png"
+                                alt="OERPUB Connexions Importer" />
+                            OERPUB Connexions Importer
+                        </a>
+                    </h1>
+                </div>
+                
+                <metal:workflownav define-slot="workflownav">
+                </metal:workflownav>
+            
+            </div>
+        </div>
+        </metal:header-slot>
+
+        <metal:errors define-slot="errors">
+        <tal:errors define="errors python:request.get('errors')" condition="errors">
+        <div id="errors-wrap">
+            <div id="errors-container">
+                <span tal:repeat="error errors"
+                    tal:content="error">
+                    error
+                </span>
+            </div>
+        </div>
+        </tal:errors>
+        </metal:errors>
+
+        <metal:content define-slot="content-slot">
+        Main content goes here
+        </metal:content>
+        
+        <!--Hidden content like popups, modal forms, etc. go here.-->
+        <metal:hidden-slot define-slot="hidden-slot">
+        </metal:hidden-slot>
+
+        <metal:footer-slot define-slot="footer-slot">
+        <div id="footer">
+            <a href="http://www.shuttleworthfoundation.org/" target="_blank"><img src="${images_url}/sf150.png" width="150"/></a>
+        </div>
+        </metal:footer-slot>
+
+    </body>
+</html>
+</metal:main>
