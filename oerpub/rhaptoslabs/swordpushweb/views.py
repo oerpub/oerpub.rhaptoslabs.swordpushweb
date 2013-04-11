@@ -104,9 +104,7 @@ def googlelogin(request):
     storage.put(credentials)
     gdocs_resource_id = request.session['gdocs_resource_id']
     save_dir = request.session['save_dir']
-    (request.session['title'], request.session['filename']) =
-    process_gdocs_resource(save_dir,
-    gdocs_resource_id,request.session['username'])
+    (request.session['title'], request.session['filename']) = process_gdocs_resource(save_dir,gdocs_resource_id,request.session['username'])
 
 
     return HTTPFound(location=request.route_url('preview'))
@@ -500,9 +498,7 @@ def choose_view(request):
 #                return Response(gdocs_resource_id)
 
                 (request.session['title'], request.session['filename']) = \
-                    process_gdocs_resource(save_dir, \
-                                           gdocs_resource_id,
-                                           request.session["username"])
+                    process_gdocs_resource(save_dir, gdocs_resource_id, request.session["username"])
                                            # , gdocs_access_token) # Google Docs authentication does not work anymore 2012-11-09
 
             # HTML URL Import:
