@@ -104,7 +104,9 @@ def googlelogin(request):
     storage.put(credentials)
     gdocs_resource_id = request.session['gdocs_resource_id']
     save_dir = request.session['save_dir']
-    (request.session['title'], request.session['filename']) = process_gdocs_resource(save_dir, gdocs_resource_id)
+    (request.session['title'], request.session['filename']) =
+    process_gdocs_resource(save_dir,
+    gdocs_resource_id,request.session['username'])
 
 
     return HTTPFound(location=request.route_url('preview'))
@@ -391,7 +393,7 @@ def render_conversionerror(request, error):
         del request.session['title']
     return render_to_response(templatePath, response, request=request)
 
-def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None):
+def process_gdocs_resource(save_dir, gdocs_resource_id, username, gdocs_access_token=None):
     """
     # login to gdocs and get a client object
     gd_client = getAuthorizedGoogleDocsClient()
@@ -408,7 +410,7 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None)
     gd_entry_url = gd_entry.content.src
     html = gd_client.get_file_content(gd_entry_url, auth_sub_token)
     """
-    storage=Storage("/root/master/credentials/"+request.session["username"])
+    storage=Storage("/root/master/credentials/"+username)
     credentials = storage.get()
     http = httplib2.Http()
     http = credentials.authorize(http)
@@ -499,7 +501,8 @@ def choose_view(request):
 
                 (request.session['title'], request.session['filename']) = \
                     process_gdocs_resource(save_dir, \
-                                           gdocs_resource_id)
+                                           gdocs_resource_id,
+                                           request.session["username"])
                                            # , gdocs_access_token) # Google Docs authentication does not work anymore 2012-11-09
 
             # HTML URL Import:
