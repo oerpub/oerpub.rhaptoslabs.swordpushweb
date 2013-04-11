@@ -113,6 +113,7 @@ def googlelogin(request):
     #    'password': request.session['password'],
      #   'login_url': login_url,
     #}
+
     if request.session['file_id_to_download']:
         http = httplib2.Http()
         credentials = Storage(credentials_location).get()
@@ -418,17 +419,21 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None)
     gd_entry_url = gd_entry.content.src
     html = gd_client.get_file_content(gd_entry_url, auth_sub_token)
     """
-    storage=Storage("/root/master/saket_credentials.json")
+    storage=Storage("/root/master/credentials/"+request.session["username"])
     credentials = storage.get()
 
     http = httplib2.Http()
     http = credentials.authorize(http)
     service = build('drive','v2',http=http)
     file = service.files().get(fileId=gdocs_resource_id).execute()
-    html = file['title']
-    print "**********************"
-    print html
-    print "**********************"
+    download_url = file['downloadUrl']
+    resp, content = service._http.request(download_url)
+    if resp.status == 200:
+        print 'Status: %s' % resp
+        html = content
+    else:
+        print 'An error occurred: %s' % resp
+        html = "Error downloading"
 
     # Transformation and get images
     cnxml, objects = gdocs_to_cnxml(html, bDownloadImages=True)
@@ -491,9 +496,16 @@ def choose_view(request):
             if form.data['gdocs_resource_id']:
                 gdocs_resource_id = form.data['gdocs_resource_id']
                 gdocs_access_token = form.data['gdocs_access_token']
+                try:
+                    with open("/root/master/credentials/"+request.session["username"]): pass
+                except IOError:
+                    request.session['gdocs_resource_id']=gdocs_resource_id
+
 
                 form.data['gdocs_resource_id'] = None
                 form.data['gdocs_access_token'] = None
+                if request.session['gdocs_resource_id']:
+                    return HTTPFound(location=request.route_url('oauth2'))
                 return Response(gdocs_resource_id)
 
                 (request.session['title'], request.session['filename']) = \
