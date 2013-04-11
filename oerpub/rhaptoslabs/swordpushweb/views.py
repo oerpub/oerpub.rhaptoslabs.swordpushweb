@@ -102,23 +102,12 @@ def googlelogin(request):
 
     storage = Storage(credentials_location)
     storage.put(credentials)
-    #http = httplib2.Http()
-    #http = credentials.authorize(http)
-    #service = build('drive','v2',http=http)
-    #files = (service.files().list().execute())
-    #print files['items']
-    #templatePath = 'templates/cnxlogin.pt'
-    #response = {
-    #    'username': request.session['username'],
-    #    'password': request.session['password'],
-     #   'login_url': login_url,
-    #}
+    gdocs_resource_id = request.session['gdocs_resource_id']
+    save_dir = request.session['save_dir']
+    (request.session['title'], request.session['filename']) = process_gdocs_resource(save_dir, gdocs_resource_id)
 
-    if request.session['file_id_to_download']:
-        http = httplib2.Http()
-        credentials = Storage(credentials_location).get()
 
-    return render_to_response(templatePath, response, request=request)
+    return HTTPFound(location=request.route_url('preview'))
 @view_config(route_name='login')
 def login_view(request):
     """
@@ -421,7 +410,6 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None)
     """
     storage=Storage("/root/master/credentials/"+request.session["username"])
     credentials = storage.get()
-
     http = httplib2.Http()
     http = credentials.authorize(http)
     service = build('drive','v2',http=http)
@@ -447,7 +435,7 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, gdocs_access_token=None)
     # that returning this filename might kill the ability to
     # do multiple tabs in parallel, unless it gets offloaded
     # onto the form again.
-    return (gd_entry.title.text, "Google Document")
+    return (gd_entry.title.text, file["title"])
 
 
 @view_config(route_name='choose')
@@ -483,6 +471,7 @@ def choose_view(request):
                 temp_dir_name
                 )
             os.mkdir(save_dir)
+            request.session['save_dir']=save_dir
 
             # Keep the info we need for next uploads.  Note that this
             # might kill the ability to do multiple tabs in parallel,
@@ -506,7 +495,7 @@ def choose_view(request):
                 form.data['gdocs_access_token'] = None
                 if request.session['gdocs_resource_id']:
                     return HTTPFound(location=request.route_url('oauth2'))
-                return Response(gdocs_resource_id)
+#                return Response(gdocs_resource_id)
 
                 (request.session['title'], request.session['filename']) = \
                     process_gdocs_resource(save_dir, \
