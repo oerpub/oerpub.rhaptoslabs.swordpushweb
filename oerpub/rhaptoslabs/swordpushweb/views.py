@@ -78,7 +78,7 @@ def oauth2(request):
     client_id= "640541804881-dph1srhbi8i0apnlsufro7q0gk610o6l.apps.googleusercontent.com"
     client_secret = "L-gUyYNwZF9q0f275yCxVBNq"
     redirect_uri = "http://r2d1.oerpub.org/googlelogin"
-    scope = "https://www.googleapis.com/auth/userinfo.profile  https://www.googleapis.com/auth/drive.file  "
+    scope = "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive.readonly  "
     url ="{token_request_uri}?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}".format(
             token_request_uri = token_request_uri,
             response_type = response_type,
@@ -412,9 +412,9 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, username, gdocs_access_t
     credentials = storage.get()
     http = httplib2.Http()
     http = credentials.authorize(http)
-    service = build('drive','v2',http=http)
+    service = build('drive','v1',http=http)
     file = service.files().get(fileId=gdocs_resource_id).execute()
-    download_url = file['downloadUrl']
+    download_url = file.get('downloadUrl')
     resp, content = service._http.request(download_url)
     if resp.status == 200:
         print 'Status: %s' % resp
