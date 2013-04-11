@@ -415,6 +415,7 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, username, gdocs_access_t
     service = build('drive','v2',http=http)
     file_d = service.files().get(fileId=gdocs_resource_id).execute()
     download_url = file_d.get('downloadUrl')
+    print "FILE ID", file_d
     print "DOWNLOAD URL :",download_url
     resp, content = service._http.request(download_url)
     if resp.status == 200:
