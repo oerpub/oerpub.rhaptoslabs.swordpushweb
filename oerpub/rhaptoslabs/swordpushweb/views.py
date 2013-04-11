@@ -495,8 +495,12 @@ def choose_view(request):
 
                 form.data['gdocs_resource_id'] = None
                 form.data['gdocs_access_token'] = None
-                if request.session['gdocs_resource_id']:
+                try:
+                    gdocs_id= request.session['gdocs_resource_id']
                     return HTTPFound(location=request.route_url('oauth2'))
+                except:
+                    pass
+
 #                return Response(gdocs_resource_id)
 
                 (request.session['title'], request.session['filename']) = \
