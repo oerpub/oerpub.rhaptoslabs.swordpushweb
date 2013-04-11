@@ -412,7 +412,7 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, username, gdocs_access_t
     credentials = storage.get()
     http = httplib2.Http()
     http = credentials.authorize(http)
-    service = build('drive','v1',http=http)
+    service = build('drive','v2',http=http)
     file = service.files().get(fileId=gdocs_resource_id).execute()
     download_url = file.get('downloadUrl')
     resp, content = service._http.request(download_url)
