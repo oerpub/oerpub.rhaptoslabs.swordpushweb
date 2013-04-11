@@ -610,7 +610,7 @@ function pickerCallback(data) {
     	console.log("access token"+data.docs);
 
 
-        document.getElementById('gdocs_resource_id').value = google.picker.ResourceId.generate(data.docs[0]);
+        document.getElementById('gdocs_resource_id').value = data.docs[0].id;//google.picker.ResourceId.generate(data.docs[0]);
         document.getElementById('gdocs_access_token').value = data.docs[0].accessToken;
         showWaitMessage();
         $('form#uploadform').submit(); 
