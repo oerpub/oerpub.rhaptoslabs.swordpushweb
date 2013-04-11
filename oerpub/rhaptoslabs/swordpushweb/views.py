@@ -75,8 +75,8 @@ def oauth2(request):
     check_login(request)
     token_request_uri = "https://accounts.google.com/o/oauth2/auth"
     response_type = "code"
-    client_id= "640541804881.apps.googleusercontent.com"
-    client_secret = "7cI9ZfiG5wbZk_EP_TSAXEF8"
+    client_id= "640541804881-dph1srhbi8i0apnlsufro7q0gk610o6l.apps.googleusercontent.com"
+    client_secret = "L-gUyYNwZF9q0f275yCxVBNq"
     redirect_uri = "http://r2d1.oerpub.org/googlelogin"
     scope = "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file"
     url ="{token_request_uri}?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}".format(
@@ -98,20 +98,25 @@ def googlelogin(request):
     code = request.GET['code']
     flow=request.session['flow']
     credentials = flow.step2_exchange(code)
-    credentials_location = "/var/www/credentials/"+request.session['username']
-    storage = Storage("/root/master/credentials/saket_credentials")
+    credentials_location = "/root/master/credentials/"+request.session['username']
+
+    storage = Storage(credentials_location)
     storage.put(credentials)
-    http = httplib2.Http()
-    http = credentials.authorize(http)
-    service = build('drive','v2',http=http)
-    files = (service.files().list().execute())
-    print files['items']
-    templatePath = 'templates/cnxlogin.pt'
-    response = {
-        'username': request.session['username'],
-        'password': request.session['password'],
-        'login_url': login_url,
-    }
+    #http = httplib2.Http()
+    #http = credentials.authorize(http)
+    #service = build('drive','v2',http=http)
+    #files = (service.files().list().execute())
+    #print files['items']
+    #templatePath = 'templates/cnxlogin.pt'
+    #response = {
+    #    'username': request.session['username'],
+    #    'password': request.session['password'],
+     #   'login_url': login_url,
+    #}
+    if request.session['file_id_to_download']:
+        http = httplib2.Http()
+        credentials = Storage(credentials_location).get()
+
     return render_to_response(templatePath, response, request=request)
 @view_config(route_name='login')
 def login_view(request):
@@ -489,6 +494,7 @@ def choose_view(request):
 
                 form.data['gdocs_resource_id'] = None
                 form.data['gdocs_access_token'] = None
+                return Response(gdocs_resource_id)
 
                 (request.session['title'], request.session['filename']) = \
                     process_gdocs_resource(save_dir, \
