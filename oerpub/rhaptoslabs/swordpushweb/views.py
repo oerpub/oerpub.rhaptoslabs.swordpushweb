@@ -437,7 +437,7 @@ def process_gdocs_resource(save_dir, gdocs_resource_id, username, gdocs_access_t
     # that returning this filename might kill the ability to
     # do multiple tabs in parallel, unless it gets offloaded
     # onto the form again.
-    return (gd_entry.title.text, file["title"])
+    return (file_d['title'], file_d["title"])
 
 
 @view_config(route_name='choose')
