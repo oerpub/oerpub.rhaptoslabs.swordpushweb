@@ -78,7 +78,13 @@ def oauth2(request):
     client_id= "640541804881-dph1srhbi8i0apnlsufro7q0gk610o6l.apps.googleusercontent.com"
     client_secret = "L-gUyYNwZF9q0f275yCxVBNq"
     redirect_uri = "http://r2d1.oerpub.org/googlelogin"
-    scope = "https://www.googleapis.com/auth/userinfo.profile  https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.install   "
+    #scope = "https://www.googleapis.com/auth/userinfo.profile  https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.install   "
+    scope ='https://www.googleapis.com/auth/drive.file \
+    https://www.googleapis.com/auth/userinfo.email \
+    https://www.googleapis.com/auth/userinfo.profile \
+    https://www.googleapis.com/auth/drive.install \
+    https://www.googleapis.com/auth/drive.metadata.readonly \
+    https://www.googleapis.com/auth/drive.readonly'
     url ="{token_request_uri}?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}".format(
             token_request_uri = token_request_uri,
             response_type = response_type,
