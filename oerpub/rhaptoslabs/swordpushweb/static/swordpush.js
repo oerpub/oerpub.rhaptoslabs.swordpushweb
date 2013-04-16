@@ -593,8 +593,6 @@ function createPicker() {
 	var view = new google.picker.View(google.picker.ViewId.DOCS);
 //	view.setMimeTypes("image/png,image/jpeg,image/jpg");    
 	var picker = new google.picker.PickerBuilder()
-		.enableFeature(google.picker.Feature.NAV_HIDDEN)
-		.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
 		.setAppId("AIzaSyBAXt4WstJdsCJ3F27CmiCa5HLIuw2aSvQ")//Optional: The auth token used in the current Drive API session.
 		.addView(google.picker.ViewId.DOCUMENTS)
 		.setCallback(pickerCallback)
