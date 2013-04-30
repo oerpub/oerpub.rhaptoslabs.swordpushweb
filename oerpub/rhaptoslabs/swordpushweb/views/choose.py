@@ -11,10 +11,14 @@ import shlex, subprocess
 from logging import getLogger
 
 from lxml import etree
+import httplib2
+from apiclient.discovery import build
+from apiclient.errors import HttpError
+from oauth2client.client import AccessTokenCredentials
 
 from pyramid_simpleform import Form
 from pyramid.view import view_config
-from pyramid.httpexceptions import HTTPFound
+from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.renderers import render_to_response
 from pyramid_simpleform.renderers import FormRenderer
 
@@ -213,6 +217,10 @@ class BaseFormProcessor(object):
     def write_traceback_to_zipfile(self, traceback):
         # Record traceback
 
+        if self.temp_dir_name is None:
+            # No files to zip just yet, just return
+            return
+
         # Get software version from git
         commit_hash = self.get_commit_hash()
         
@@ -225,8 +233,9 @@ class BaseFormProcessor(object):
         # Zip up error report, form data, uploaded file (if any)  and
         # temporary transform directory
         zip_archive = zipfile.ZipFile(zip_filename, 'w')
-        info = self.format_info(traceback, commit_hash, self.request, self.form)
-        zip_archive.writestr("info.txt", info)
+        if self.form is not None:
+            info = self.format_info(traceback, commit_hash, self.request, self.form)
+            zip_archive.writestr("info.txt", info)
 
         basePath = self.request.registry.settings['transform_dir']
         add_directory_to_zip(self.temp_dir_name,
@@ -573,24 +582,95 @@ class OfficeDocumentProcessor(BaseFormProcessor):
                     (odt_filename,command) )
         
 class GoogleDocProcessor(BaseFormProcessor):
+    """ This processor is a little insane. In working with the existing scheme
+        here, it has a process() method, but all that does is send you over to
+        google for authentication. The actual processing is implemented in the
+        callback() method, so this class overrides create_save_dir() to avoid
+        creating empty directories. It can be initialised with form=None, but
+        then you cannot call process(), only callback(). This is done so the
+        callback does not have to make up a new form. This developer thinks
+        form should be passed to process as parameter, not persisted on the
+        object. FIXME?
+    """
     def __init__(self, request, form):
         super(GoogleDocProcessor, self).__init__(request, form)
         self.set_source('gdocupload')
         self.set_target('new')
+
+    def reinit(self, request):
+        self.request = request
+        self.temp_dir_name, self.save_dir = create_save_dir(request)
+        self.upload_dir = self.temp_dir_name
+        self.request.session['upload_dir'] = self.temp_dir_name
     
+    def create_save_dir(self, request):
+        # We override this, because we don't want to go create a save dir just
+        # yet. We don't have any content to save yet and stashing away all
+        # that detail about the location of the temporary storage can be
+        # delayed until later. With all due respect to my colleagues, this
+        # is all a little insane already. Why do we even have to pass `request`
+        # as a parameter, we already persisted it as self.request? FIXME!
+        return None, None
+
     def process(self):
+        gdocs_resource_id = self.form.data['gdocs_resource_id']
+
+        # First attempt to get the document without auth. It is unclear
+        # what the official way to do that is, but this works. Fetch the
+        # document using the docs export url. If we get a redirect, we assume
+        # that is a redirect to a login page and move on to real
+        # authentication. Research on the subject suggest that a redirect might
+        # also occur if the imported document is too large.
+        http = httplib2.Http()
+        http.follow_redirects = False
         try:
-            gdocs_resource_id = self.form.data['gdocs_resource_id']
-            gdocs_access_token = self.form.data['gdocs_access_token']
+            # Make sure gdocs_resource_id is safe, we're injecting it
+            # into an url and this could potentially be used for all sorts of
+            # insertion attacks. This checks that all characters in the
+            # resource id is allowed as per RFC 1738.
+            assert re.compile("(^[\w$-.+!*'(),]+$)").match(
+                gdocs_resource_id) is not None, "Possible insertion attack"
+            resp, html = http.request(
+                'https://docs.google.com/document/d/%s/export?format=html&confirm=no_antivirus' % gdocs_resource_id)
+        except HttpError:
+            pass
+        else:
+            # Check that status was OK, google docs sends a redirect to a login
+            # page if not.
+            if resp.status / 100 == 2:
+                # Get the title
+                title = etree.fromstring(html,
+                    etree.HTMLParser()).xpath(
+                    '/html/head/title/text()')[0] or \
+                    'Untitled Google Document'
 
-            self.form.data['gdocs_resource_id'] = None
-            self.form.data['gdocs_access_token'] = None
+                self.reinit(self.request)
+                return self.process_gdocs_resource(html, title)
 
-            title, filename = self.process_gdocs_resource(
-                self.save_dir, gdocs_resource_id)
+        # Doc is not public or could not import. Redirect google oath. Because
+        # we overrode create_save_dir, we will not leave behind any crud
+        # because of this.  This will eventually redirect to callback() below.
+        return self.request.registry.velruse_providers['google'].login(
+            self.request, docid=gdocs_resource_id)
 
-            self.request.session['title'] = title
-            self.request.session['filename'] = filename
+    def callback(self, request, gdocs_resource_id, gdocs_access_token):
+        # This is called when we return from google auth. Fetch the document.
+        resp, html, title = self.get_gdoc_resource(gdocs_resource_id,
+            gdocs_access_token)
+        if resp.status / 100 != 2:
+            # TODO, we can handle this a bit better.
+            raise HTTPNotFound('Could not download google document')
+
+        # We have the content, now we can create a temporary workspace.
+        # In keeping with the scheme above, update the request on which we
+        # operate, and update like BaseFormProcessor does above.
+        self.reinit(request)
+        return self.process_gdocs_resource(html, title)
+
+    def process_gdocs_resource(self, html, title):
+        try:
+            filename = self._process_gdocs_resource(
+                self.save_dir, html)
         except ConversionError as e:
             return render_conversionerror(self.request, e.msg)
 
@@ -603,39 +683,34 @@ class GoogleDocProcessor(BaseFormProcessor):
                 del self.request.session['title']
             return render_to_response(templatePath, response, request=self.request)
 
+        self.request.session['title'] = title
+        self.request.session['filename'] = filename
         self.request.session.flash(self.message)
         return HTTPFound(location=self.request.route_url(self.nextStep()))
-    
-    def process_gdocs_resource(self, save_dir, gdocs_resource_id, gdocs_access_token=None):
 
-        # login to gdocs and get a client object
-        gd_client = getAuthorizedGoogleDocsClient()
-
-        # Create a AuthSub Token based on gdocs_access_token String
-        auth_sub_token = gdata.gauth.AuthSubToken(gdocs_access_token) \
-                         if gdocs_access_token \
-                         else None
-
-        # get the Google Docs Entry
-        gd_entry = gd_client.GetDoc(gdocs_resource_id, None, auth_sub_token)
-
-        # Get the contents of the document
-        gd_entry_url = gd_entry.content.src
-        html = gd_client.get_file_content(gd_entry_url, auth_sub_token)
-
+    @classmethod
+    def _process_gdocs_resource(klass, save_dir, html):
         # Transformation and get images
         cnxml, objects = gdocs_to_cnxml(html, bDownloadImages=True)
-
         cnxml = clean_cnxml(cnxml)
         save_cnxml(save_dir, cnxml, objects.items())
-
         validate_cnxml(cnxml)
+        return "Google Document"
 
-        # Return the title and filename.  Old comment states
-        # that returning this filename might kill the ability to
-        # do multiple tabs in parallel, unless it gets offloaded
-        # onto the form again.
-        return (gd_entry.title.text, "Google Document")
+    @classmethod
+    def get_gdoc_resource(klass, gdocs_resource_id, gdocs_access_token=None):
+        http = httplib2.Http()
+        if gdocs_access_token is not None:
+            credentials = AccessTokenCredentials(gdocs_access_token, 'remix-client')
+            credentials.authorize(http)
+        drive = build('drive', 'v2', http=http)
+
+        # Get the html version of the file
+        md = drive.files().get(fileId=gdocs_resource_id).execute()
+        uri = md['exportLinks']['text/html']
+
+        resp, content = drive._http.request(uri)
+        return resp, content, md['title']
 
 class PresentationProcessor(BaseFormProcessor):
     def __init__(self, request, form):
@@ -730,14 +805,31 @@ class URLProcessor(BaseFormProcessor):
             r = regex.search(url)
 
             # Take special action for Google Docs URLs
-            if r:
+            if r is not None:
                 gdocs_resource_id = r.groups()[0]
-                doc_id = "document:" + gdocs_resource_id
-                title, filename = self.process_gdocs_resource(self.save_dir,
-                                                              doc_id)
+                http = httplib2.Http()
+                http.follow_redirects = False
+                try:
+                    resp, html = http.request(
+                        'https://docs.google.com/document/d/%s/export?format=html&confirm=no_antivirus' % gdocs_resource_id)
+                except HttpError:
+                    pass
+                else:
+                    # Check that status was OK, google docs sends a redirect to a login
+                    # page if not.
+                    if resp.status / 100 == 2:
+                        # Get the title
+                        title = etree.fromstring(html,
+                            etree.HTMLParser()).xpath(
+                            '/html/head/title/text()')[0] or \
+                            'Untitled Google Document'
 
-                self.request.session['title'] = title
-                self.request.session['filename'] = filename
+                        # Process it
+                        P = GoogleDocProcessor(self.request, None)
+                        P.reinit(self.request)
+                        return P.process_gdocs_resource(html, title)
+                self.request.session.flash('Failed to convert google document')
+                return HTTPFound(location=self.request.route_url('choose'))
             else:
                 # download html:
                 # Simple urlopen() will fail on mediawiki websites eg. Wikipedia!
