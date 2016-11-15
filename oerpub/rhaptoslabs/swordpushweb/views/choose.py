@@ -818,11 +818,8 @@ class URLProcessor(BaseFormProcessor):
                     # Check that status was OK, google docs sends a redirect to a login
                     # page if not.
                     if resp.status / 100 == 2:
-                        # Get the title
-                        title = etree.fromstring(html,
-                            etree.HTMLParser()).xpath(
-                            '/html/head/title/text()')[0] or \
-                            'Untitled Google Document'
+                        # Get the title (does not work anymore)
+                        title = 'Untitled Google Document'
 
                         # Process it
                         P = GoogleDocProcessor(self.request)
